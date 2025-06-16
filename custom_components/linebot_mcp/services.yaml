@@ -1,0 +1,305 @@
+# LINE Bot Reply Message Service
+# linebot_reply_message:
+#   name: Reply LINE message
+#   description: Reply to a LINE message using reply token
+#   fields:
+#     name:
+#       name: Bot name
+#       description: LINE Bot identifier name
+#       required: true
+#       example: "@linebot"
+#       selector:
+#         text:
+#     reply_token:
+#       name: Reply token
+#       description: Reply token from LINE webhook event
+#       required: true
+#       example: "nHuyWiB7yP5Zw52FIkcQobQuGDXCTA"
+#       selector:
+#         text:
+#     messages:
+#       name: Messages
+#       description: Array of message objects to send
+#       required: true
+#       example: '[{"type": "text", "text": "Hello World!"}]'
+#       selector:
+#         object:
+#     notification_disabled:
+#       name: Disable notification
+#       description: Disable push notification for this message
+#       default: false
+#       selector:
+#         boolean:
+
+# LINE Bot Push Message Service
+# linebot_push_message:
+#   name: Push LINE message
+#   description: Send push message to LINE users
+#   fields:
+#     name:
+#       name: Bot name
+#       description: LINE Bot identifier name
+#       required: true
+#       example: "@linebot"
+#       selector:
+#         text:
+#     to:
+#       name: Recipient
+#       description: User ID, group ID, or room ID to send message to
+#       required: true
+#       example: "U1234567890abcdef1234567890abcdef"
+#       selector:
+#         text:
+#     messages:
+#       name: Messages
+#       description: Array of message objects to send
+#       required: true
+#       example: '[{"type": "text", "text": "Hello World!"}]'
+#       selector:
+#         object:
+#     retry_key:
+#       name: Retry key
+#       description: UUID to prevent duplicate message sending
+#       example: "550e8400-e29b-41d4-a716-446655440000"
+#       selector:
+#         text:
+#     notification_disabled:
+#       name: Disable notification
+#       description: Disable push notification for this message
+#       default: false
+#       selector:
+#         boolean:
+
+# Content Creation Services
+create_text_content:
+  name: Create text message content
+  description: Create text message content object
+  fields:
+    text:
+      name: Text content
+      description: Message text content
+      required: true
+      example: "Hello, World!"
+      selector:
+        text:
+          multiline: true
+
+create_text_v2_content:
+  name: Create text v2 message content
+  description: Create text v2 message content with mentions and emojis
+  fields:
+    text:
+      name: Text content
+      description: Message text content
+      required: true
+      example: "Hello @user!"
+      selector:
+        text:
+          multiline: true
+    mentions:
+      name: Mentions
+      description: Array of mention objects
+      example: '[{"index": 6, "length": 5, "userId": "U1234567890"}]'
+      selector:
+        object:
+    emojis:
+      name: Emojis
+      description: Array of emoji objects
+      example: '[{"index": 0, "productId": "5ac1bfd5040ab15980c9b435", "emojiId": "001"}]'
+      selector:
+        object:
+
+create_image_content:
+  name: Create image message content
+  description: Create image message content object
+  fields:
+    original_content_url:
+      name: Original image URL
+      description: URL of the original image
+      required: true
+      example: "https://example.com/image.jpg"
+      selector:
+        text:
+    preview_image_url:
+      name: Preview image URL
+      description: URL of the preview image
+      example: "https://example.com/preview.jpg"
+      selector:
+        text:
+
+create_video_content:
+  name: Create video message content
+  description: Create video message content object
+  fields:
+    original_content_url:
+      name: Original video URL
+      description: URL of the original video
+      required: true
+      example: "https://example.com/video.mp4"
+      selector:
+        text:
+    preview_image_url:
+      name: Preview image URL
+      description: URL of the preview image
+      required: true
+      example: "https://example.com/preview.jpg"
+      selector:
+        text:
+
+create_audio_content:
+  name: Create audio message content
+  description: Create audio message content object
+  fields:
+    original_content_url:
+      name: Original audio URL
+      description: URL of the original audio file
+      required: true
+      example: "https://example.com/audio.m4a"
+      selector:
+        text:
+    duration:
+      name: Duration
+      description: Audio duration in milliseconds
+      required: true
+      example: 60000
+      selector:
+        number:
+          min: 1
+          max: 300000
+          unit_of_measurement: "ms"
+
+create_location_content:
+  name: Create location message content
+  description: Create location message content object
+  fields:
+    title:
+      name: Title
+      description: Location title
+      required: true
+      example: "Tokyo Station"
+      selector:
+        text:
+    address:
+      name: Address
+      description: Location address
+      required: true
+      example: "1 Chome Marunouchi, Chiyoda City, Tokyo"
+      selector:
+        text:
+    latitude:
+      name: Latitude
+      description: Location latitude
+      required: true
+      example: 35.6762
+      selector:
+        number:
+          min: -90
+          max: 90
+          step: 0.000001
+    longitude:
+      name: Longitude
+      description: Location longitude
+      required: true
+      example: 139.6503
+      selector:
+        number:
+          min: -180
+          max: 180
+          step: 0.000001
+
+create_sticker_content:
+  name: Create sticker message content
+  description: Create sticker message content object
+  fields:
+    package_id:
+      name: Package ID
+      description: Sticker package ID
+      required: true
+      example: "446"
+      selector:
+        text:
+    sticker_id:
+      name: Sticker ID
+      description: Sticker ID
+      required: true
+      example: "1988"
+      selector:
+        text:
+
+create_flex_content:
+  name: Create flex message content
+  description: Create flex message content object
+  fields:
+    alt_text:
+      name: Alternative text
+      description: Alternative text for flex message
+      required: true
+      example: "This is a flex message"
+      selector:
+        text:
+    contents:
+      name: Flex contents
+      description: Flex message contents object
+      required: true
+      example: '{"type": "bubble", "body": {"type": "box", "layout": "vertical", "contents": [{"type": "text", "text": "Hello"}]}}'
+      selector:
+        object:
+
+create_imagemap_content:
+  name: Create imagemap message content
+  description: Create imagemap message content object
+  fields:
+    base_url:
+      name: Base URL
+      description: Base URL for imagemap images
+      required: true
+      example: "https://example.com/imagemap"
+      selector:
+        text:
+    alt_text:
+      name: Alternative text
+      description: Alternative text for imagemap
+      required: true
+      example: "This is an imagemap"
+      selector:
+        text:
+    base_size:
+      name: Base size
+      description: Base size object with width and height
+      required: true
+      example: '{"width": 1040, "height": 1040}'
+      selector:
+        object:
+    actions:
+      name: Actions
+      description: Array of imagemap action objects
+      required: true
+      example: '[{"type": "uri", "linkUri": "https://example.com", "area": {"x": 0, "y": 0, "width": 520, "height": 520}}]'
+      selector:
+        object:
+    video:
+      name: Video
+      description: Video object for imagemap
+      example: '{"originalContentUrl": "https://example.com/video.mp4", "previewImageUrl": "https://example.com/preview.jpg", "area": {"x": 0, "y": 0, "width": 1040, "height": 585}}'
+      selector:
+        object:
+
+create_template_content:
+  name: Create template message content
+  description: Create template message content object
+  fields:
+    alt_text:
+      name: Alternative text
+      description: Alternative text for template message
+      required: true
+      example: "This is a template message"
+      selector:
+        text:
+    template:
+      name: Template
+      description: Template object (buttons, confirm, carousel, or image_carousel)
+      required: true
+      example: '{"type": "buttons", "text": "Please select", "actions": [{"type": "message", "label": "Yes", "text": "yes"}]}'
+      selector:
+        object:
+

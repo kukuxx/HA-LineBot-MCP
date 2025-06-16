@@ -1,0 +1,26 @@
+{
+    "codeowners": [
+        "@kukuxx"
+    ],
+    "domain": "linebot_mcp",
+    "name": "LINE Bot MCP",
+    "version": "1.0.0",
+    "homeassistant": "2025.5.0",
+    "config_flow": true,
+    "dependencies": [
+        "http"
+    ],
+    "documentation": "https://github.com/kukuxx/HA-LineBot-MCP/blob/main/README.md",
+    "issue_tracker": "https://github.com/kukuxx/HA-LineBot-MCP/issues",
+    "integration_type": "service",
+    "iot_class": "cloud_push",
+    "requirements": [
+        "line-bot-sdk==3.17.1",
+        "mcp==1.5.0",
+        "aiohttp_sse==2.2.0",
+        "anyio==4.9.0"
+    ],
+    "loggers": [
+        "linebot_mcp"
+    ]
+}

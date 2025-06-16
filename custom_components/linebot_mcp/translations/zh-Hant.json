@@ -1,0 +1,246 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "設定 LINE Bot MCP 整合",
+                "description": "請輸入您的 LINE Bot 設定資訊",
+                "data": {
+                    "name": "Bot ID",
+                    "channel_access_token": "Channel Access Token",
+                    "channel_secret": "Channel Secret"
+                }
+            }
+        },
+        "error": {
+            "required": "此欄位為必填",
+            "invalid_token": "無效的 Channel Access Token",
+            "invalid_secret": "無效的 Channel Secret（應為32字元）",
+            "invalid_name": "無效的名稱（應以 '@' 開頭，只包含小寫字母和數字)"
+        },
+        "abort": {
+            "already_configured": "此 LINE Bot 已經設定過了"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "LINE Bot MCP 選項",
+                "description": "調整 LINE Bot MCP 設定",
+                "data": {
+                    "agent_id": "代理 ID",
+                    "auto_reply": "自動回覆"
+                }
+            }
+        }
+    },
+    "services": {
+        "linebot_reply_message": {
+            "name": "回覆 LINE 訊息",
+            "description": "使用回覆 Token 回覆 LINE 訊息",
+            "fields": {
+                "name": {
+                    "name": "Bot 名稱",
+                    "description": "LINE Bot 識別名稱"
+                },
+                "reply_token": {
+                    "name": "回覆 Token",
+                    "description": "來自 LINE Webhook 事件的回覆 Token"
+                },
+                "messages": {
+                    "name": "訊息陣列",
+                    "description": "要發送的訊息物件陣列"
+                },
+                "notification_disabled": {
+                    "name": "停用通知",
+                    "description": "停用此訊息的推播通知"
+                }
+            }
+        },
+        "linebot_push_message": {
+            "name": "推送 LINE 訊息",
+            "description": "推送訊息給 LINE 用戶",
+            "fields": {
+                "name": {
+                    "name": "Bot 名稱",
+                    "description": "LINE Bot 識別名稱"
+                },
+                "to": {
+                    "name": "接收者",
+                    "description": "要發送訊息的用戶 ID、群組 ID 或聊天室 ID"
+                },
+                "messages": {
+                    "name": "訊息陣列",
+                    "description": "要發送的訊息物件陣列"
+                },
+                "retry_key": {
+                    "name": "重試金鑰",
+                    "description": "防止重複發送訊息的 UUID"
+                },
+                "notification_disabled": {
+                    "name": "停用通知",
+                    "description": "停用此訊息的推播通知"
+                }
+            }
+        },
+        "create_text_content": {
+            "name": "建立文字訊息內容",
+            "description": "建立文字訊息內容物件",
+            "fields": {
+                "text": {
+                    "name": "文字內容",
+                    "description": "訊息文字內容"
+                }
+            }
+        },
+        "create_text_v2_content": {
+            "name": "建立文字 v2 訊息內容",
+            "description": "建立包含提及和表情符號的文字 v2 訊息內容",
+            "fields": {
+                "text": {
+                    "name": "文字內容",
+                    "description": "訊息文字內容"
+                },
+                "mentions": {
+                    "name": "提及",
+                    "description": "提及物件陣列"
+                },
+                "emojis": {
+                    "name": "表情符號",
+                    "description": "表情符號物件陣列"
+                }
+            }
+        },
+        "create_image_content": {
+            "name": "建立圖片訊息內容",
+            "description": "建立圖片訊息內容物件",
+            "fields": {
+                "original_content_url": {
+                    "name": "原始圖片網址",
+                    "description": "原始圖片的網址"
+                },
+                "preview_image_url": {
+                    "name": "預覽圖片網址",
+                    "description": "預覽圖片的網址"
+                }
+            }
+        },
+        "create_video_content": {
+            "name": "建立影片訊息內容",
+            "description": "建立影片訊息內容物件",
+            "fields": {
+                "original_content_url": {
+                    "name": "原始影片網址",
+                    "description": "原始影片的網址"
+                },
+                "preview_image_url": {
+                    "name": "預覽圖片網址",
+                    "description": "預覽圖片的網址"
+                }
+            }
+        },
+        "create_audio_content": {
+            "name": "建立音訊訊息內容",
+            "description": "建立音訊訊息內容物件",
+            "fields": {
+                "original_content_url": {
+                    "name": "原始音訊網址",
+                    "description": "原始音訊檔案的網址"
+                },
+                "duration": {
+                    "name": "播放時長",
+                    "description": "音訊播放時長（毫秒）"
+                }
+            }
+        },
+        "create_location_content": {
+            "name": "建立位置訊息內容",
+            "description": "建立位置訊息內容物件",
+            "fields": {
+                "title": {
+                    "name": "標題",
+                    "description": "位置標題"
+                },
+                "address": {
+                    "name": "地址",
+                    "description": "位置地址"
+                },
+                "latitude": {
+                    "name": "緯度",
+                    "description": "位置緯度"
+                },
+                "longitude": {
+                    "name": "經度",
+                    "description": "位置經度"
+                }
+            }
+        },
+        "create_sticker_content": {
+            "name": "建立貼圖訊息內容",
+            "description": "建立貼圖訊息內容物件",
+            "fields": {
+                "package_id": {
+                    "name": "貼圖包 ID",
+                    "description": "貼圖包 ID"
+                },
+                "sticker_id": {
+                    "name": "貼圖 ID",
+                    "description": "貼圖 ID"
+                }
+            }
+        },
+        "create_flex_content": {
+            "name": "建立 Flex 訊息內容",
+            "description": "建立 Flex 訊息內容物件",
+            "fields": {
+                "alt_text": {
+                    "name": "替代文字",
+                    "description": "Flex 訊息的替代文字"
+                },
+                "contents": {
+                    "name": "Flex 內容",
+                    "description": "Flex 訊息內容物件"
+                }
+            }
+        },
+        "create_imagemap_content": {
+            "name": "建立圖像地圖訊息內容",
+            "description": "建立圖像地圖訊息內容物件",
+            "fields": {
+                "base_url": {
+                    "name": "基礎網址",
+                    "description": "圖像地圖圖片的基礎網址"
+                },
+                "alt_text": {
+                    "name": "替代文字",
+                    "description": "圖像地圖的替代文字"
+                },
+                "base_size": {
+                    "name": "基礎尺寸",
+                    "description": "包含寬度和高度的基礎尺寸物件"
+                },
+                "actions": {
+                    "name": "動作",
+                    "description": "圖像地圖動作物件陣列"
+                },
+                "video": {
+                    "name": "影片",
+                    "description": "圖像地圖的影片物件"
+                }
+            }
+        },
+        "create_template_content": {
+            "name": "建立模板訊息內容",
+            "description": "建立模板訊息內容物件",
+            "fields": {
+                "alt_text": {
+                    "name": "替代文字",
+                    "description": "模板訊息的替代文字"
+                },
+                "template": {
+                    "name": "模板",
+                    "description": "模板物件（按鈕、確認、輪播或圖片輪播）"
+                }
+            }
+        }
+    }
+}

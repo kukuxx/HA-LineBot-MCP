@@ -1,0 +1,40 @@
+{
+    "services": {
+        "linebot_reply_message": {
+            "service": "mdi:reply"
+        },
+        "linebot_push_message": {
+            "service": "mdi:send"
+        },
+        "create_text_content": {
+            "service": "mdi:text"
+        },
+        "create_text_v2_content": {
+            "service": "mdi:text-box"
+        },
+        "create_image_content": {
+            "service": "mdi:image"
+        },
+        "create_video_content": {
+            "service": "mdi:video"
+        },
+        "create_audio_content": {
+            "service": "mdi:music"
+        },
+        "create_location_content": {
+            "service": "mdi:map-marker"
+        },
+        "create_sticker_content": {
+            "service": "mdi:sticker-emoji"
+        },
+        "create_flex_content": {
+            "service": "mdi:view-grid"
+        },
+        "create_imagemap_content": {
+            "service": "mdi:image-area"
+        },
+        "create_template_content": {
+            "service": "mdi:card-text"
+        }
+    }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "LINE Bot MCP",
+  "documentation": "https://github.com/kukuxx/HA-Line-Bot-MCP/blob/main/README.md",
+  "issue_tracker": "https://github.com/kukuxx/HA-Line-Bot-MCP/issues",
+  "render_readme": true,
+  "homeassistant": "2025.2.0"
+}
