@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 from typing import Any
 
-from homeassistant.core import HomeAssistant
-from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import Platform, EVENT_HOMEASSISTANT_STOP
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
@@ -30,6 +31,8 @@ from .const import (
     CONF_AUTO_REPLY,
     SERVICE_MANAGER,
     SESSION_MANAGER,
+    SHUTDOWN_EVENT,
+    STOP_LISTENER,
     LINEBOT_INFO_COORDINATOR,
     LINEBOT_QUOTA_COORDINATOR,
     LINE_API_CLIENT,
@@ -37,18 +40,36 @@ from .const import (
 
 
 _LOGGER = logging.getLogger(__name__)
-
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """設置 LINE Bot MCP 組件"""
-    hass.data.setdefault(DOMAIN, {})
+    @callback
+    async def handle_shutdown(event):
+        """處理終止事件"""
+        _LOGGER.debug("Received shutdown event")
+        session = hass.data[DOMAIN][SESSION_MANAGER]
+        shutdown_event = hass.data[DOMAIN][SHUTDOWN_EVENT]
+        shutdown_event.set()
+        await asyncio.sleep(1)
+        session.close()
 
+    cancel = hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, handle_shutdown)
+    hass.data.setdefault(DOMAIN, {})
+    
     # 設定全域 LINE Bot 服務
     service_manager = LineBotServiceManager(hass)
     await service_manager.setup_services()
-    hass.data[DOMAIN][SERVICE_MANAGER] = service_manager
+
+    hass.data[DOMAIN].update({
+        SERVICE_MANAGER: service_manager,
+        SESSION_MANAGER: SessionManager(),
+        STOP_LISTENER: cancel,
+        SHUTDOWN_EVENT: asyncio.Event(),
+    })
+    # 設定 MCP HTTP API
+    http.async_register(hass)
 
     return True
 
@@ -71,10 +92,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # 設定 webhook
     await _setup_webhook(hass, config_data, entry.entry_id)
-
-    # 設定 MCP HTTP API
-    hass.data[DOMAIN][entry.entry_id][SESSION_MANAGER] = SessionManager()
-    http.async_register(hass, entry.entry_id, config_data[CONF_SERVICE_NAME])
     
     # 初始化協調器
     info_coordinator = LineBotInfoCoordinator(hass, entry)
@@ -109,11 +126,17 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """卸載配置項目"""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN][entry.entry_id][SESSION_MANAGER].close()
         hass.data[DOMAIN].pop(entry.entry_id)
         
         if not hass.config_entries.async_entries(DOMAIN):
             await hass.data[DOMAIN][SERVICE_MANAGER].remove_services()
+            _LOGGER.debug("clearing task start")
+            hass.data[DOMAIN][STOP_LISTENER]()
+            session = hass.data[DOMAIN][SESSION_MANAGER]
+            shutdown_event = hass.data[DOMAIN][SHUTDOWN_EVENT]
+            shutdown_event.set()
+            await asyncio.sleep(1)
+            session.close()
             hass.data.pop(DOMAIN)
 
     return unload_ok

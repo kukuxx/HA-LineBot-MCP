@@ -1,8 +1,9 @@
 """LINE Bot sensor platform."""
 from __future__ import annotations
 
-from typing import Any
 import logging
+from typing import Any
+from datetime import datetime
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -44,7 +45,6 @@ async def async_setup_entry(
     config_data = hass.data[DOMAIN][config_entry.entry_id]
     
     sensors = [
-        LineBotMessageSensor(hass, config_data),
         LineBotInfoSensor(config_data, config_data[LINEBOT_INFO_COORDINATOR]),
         LineBotQuotaSensor(config_data, config_data[LINEBOT_QUOTA_COORDINATOR]),
     ]
@@ -150,59 +150,63 @@ class LineBotQuotaSensor(CoordinatorEntity, LineBotBaseSensor):
         return attrs
 
 
-class LineBotMessageSensor(LineBotBaseSensor):
-    """LINE Bot 訊息感測器."""
+# class LineBotMessageSensor(LineBotBaseSensor):
+#     """LINE Bot 訊息感測器."""
 
-    def __init__(self, hass: HomeAssistant, config_data: dict[str, Any]) -> None:
-        """初始化感測器."""
-        super().__init__(config_data, "Message Event", "message_event")
-        self.hass = hass
-        self._attr_icon = "mdi:message-text"
-        self._attr_should_poll = False
+#     def __init__(self, hass: HomeAssistant, config_data: dict[str, Any]) -> None:
+#         """初始化感測器."""
+#         super().__init__(config_data, "Message Event", "message_event")
+#         self.hass = hass
+#         self._attr_icon = "mdi:message-text"
+#         self._attr_should_poll = False
         
-        self._state = "unknown"
-        self._attributes: dict[str, Any] = {}
-        self._remove_listener = None
+#         self._state = "unknown"
+#         self._attributes: dict[str, Any] = {}
+#         self._remove_listener = None
 
-    async def async_added_to_hass(self) -> None:
-        """當感測器被加入 Home Assistant 時."""
-        @callback
-        def handle_message_event(event) -> None:
-            """處理訊息事件."""
-            event_data = event.data
-            message_type = event_data.get(ATTR_MESSAGE_TYPE)
-            self._state = message_type or "unknown"
+#     async def async_added_to_hass(self) -> None:
+#         """當感測器被加入 Home Assistant 時."""
+#         @callback
+#         def handle_message_event(event) -> None:
+#             """處理訊息事件."""
+#             event_data = event.data
+#             message_type = event_data.get(ATTR_MESSAGE_TYPE)
+#             timestamp = event_data.get(ATTR_TIMESTAMP)
+#             if timestamp:
+#                 dt_utc = datetime.fromtimestamp(timestamp / 1000)
+#                 dt_local = dt_util.as_local(dt_utc)
+
+#             self._state = dt_local.strftime("%Y-%m-%d %H:%M:%S") or "unknown"
             
-            self._attributes = {
-                ATTR_SOURCE_TYPE: event_data.get(ATTR_SOURCE_TYPE),
-                ATTR_USER_ID: event_data.get(ATTR_USER_ID),
-                ATTR_GROUP_ID: event_data.get(ATTR_GROUP_ID),
-                ATTR_ROOM_ID: event_data.get(ATTR_ROOM_ID),
-                ATTR_REPLY_TOKEN: event_data.get(ATTR_REPLY_TOKEN),
-                ATTR_MESSAGE_TYPE: message_type,
-                ATTR_MESSAGE_ID: event_data.get(ATTR_MESSAGE_ID),
-                ATTR_TIMESTAMP: event_data.get(ATTR_TIMESTAMP),       
-            }
+#             self._attributes = {
+#                 ATTR_SOURCE_TYPE: event_data.get(ATTR_SOURCE_TYPE),
+#                 ATTR_USER_ID: event_data.get(ATTR_USER_ID),
+#                 ATTR_GROUP_ID: event_data.get(ATTR_GROUP_ID),
+#                 ATTR_ROOM_ID: event_data.get(ATTR_ROOM_ID),
+#                 ATTR_REPLY_TOKEN: event_data.get(ATTR_REPLY_TOKEN),
+#                 ATTR_MESSAGE_TYPE: message_type,
+#                 ATTR_MESSAGE_ID: event_data.get(ATTR_MESSAGE_ID),      
+#             }
             
-            self.async_write_ha_state()
+#             self.async_write_ha_state()
         
-        # 註冊事件監聽器
-        self._remove_listener = self.hass.bus.async_listen(
-            EVENT_MESSAGE_RECEIVED.format(self.config_data[CONF_NAME]), 
-            handle_message_event
-        )
+#         # 註冊事件監聽器
+#         self._remove_listener = self.hass.bus.async_listen(
+#             EVENT_MESSAGE_RECEIVED.format(self.config_data[CONF_NAME]), 
+#             handle_message_event
+#         )
 
-    async def async_will_remove_from_hass(self) -> None:
-        """當感測器即將從 Home Assistant 移除時."""
-        if self._remove_listener:
-            self._remove_listener()
+#     async def async_will_remove_from_hass(self) -> None:
+#         """當感測器即將從 Home Assistant 移除時."""
+#         if self._remove_listener:
+#             self._remove_listener()
 
-    @property
-    def native_value(self) -> str:
-        """回傳感測器狀態."""
-        return self._state
+#     @property
+#     def native_value(self) -> str:
+#         """回傳感測器狀態."""
+#         return self._state
 
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """回傳額外屬性."""
-        return self._attributes
+#     @property
+#     def extra_state_attributes(self) -> dict[str, Any]:
+#         """回傳額外屬性."""
+#         return self._attributes

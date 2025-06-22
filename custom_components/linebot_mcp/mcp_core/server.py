@@ -13,7 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from ..const import (
     DOMAIN,
     SERVICE_MANAGER,
-    MCP_TOOL_SEND_MESSAGE,
+    MCP_TOOL_PUSH_MESSAGE,
     MCP_TOOL_REPLY_MESSAGE,
     MCP_TOOL_GET_QUOTA_INFO,
     EVENT_MCP_TOOL_CALLED,
@@ -28,70 +28,67 @@ def _get_line_message_schema() -> dict:
     """獲取 LINE 訊息格式的 JSON Schema"""
     return {
         "type": "object",
-        "description": "LINE message object. Must be one of text, image, or location.",
+        "description": "LINE message: text, image, or location",
         "oneOf": [
             {
                 "properties": {
                     "type": {
-                        "const": "text",
-                        "description": "Indicates this message is a text message"
+                        "type": "string",
+                        "enum": ["text"],
+                        "description": "Text message"
                     },
                     "text": {
                         "type": "string",
-                        "description": "Text message content (max 5000 characters)"
+                        "description": "Message content",
+                        "maxLength": 5000
                     }
                 },
                 "required": ["type", "text"]
             },
             {
-                "type": "object",
                 "properties": {
                     "type": {
-                        "const": "image",
-                        "description": "Indicates this message is an image message"
+                        "type": "string",
+                        "enum": ["image"],
+                        "description": "Image message"
                     },
                     "originalContentUrl": {
                         "type": "string",
                         "format": "uri",
-                        "description": (
-                            "Required. HTTPS URL of the original image (JPEG or PNG, max 10MB, max 2000 characters)."
-                        ),
+                        "description": "HTTPS URL of original image (JPEG/PNG, max 10MB)",
                         "maxLength": 2000
                     },
                     "previewImageUrl": {
                         "type": "string",
                         "format": "uri",
-                        "description": (
-                            "Required. HTTPS URL of the preview image (JPEG or PNG, max 1MB, max 2000 characters)."
-                            "If omitted, originalContentUrl may be used as preview depending on device."
-                        ),
+                        "description": "HTTPS URL of preview image (max 1MB)",
                         "maxLength": 2000
                     }
                 },
                 "required": ["type", "originalContentUrl", "previewImageUrl"]
             },
-
             {
                 "properties": {
                     "type": {
-                        "const": "location",
-                        "description": "Indicates this message is a location message"
+                        "type": "string",
+                        "enum": ["location"],
+                        "description": "Location message"
                     },
                     "title": {
                         "type": "string",
-                        "description": "Title of the location, shown as a label above the address (e.g., 'My Home')"
+                        "description": "Location title/label"
                     },
                     "address": {
                         "type": "string",
-                        "description": "Full address of the location to display in the message"
+                        "description": "Full address"
                     },
                     "latitude": {
                         "type": "number",
-                        "description": "Latitude of the location"
+                        "description": "Latitude coordinate"
                     },
                     "longitude": {
                         "type": "number",
-                        "description": "Longitude of the location"
+                        "description": "Longitude coordinate"
                     }
                 },
                 "required": ["type", "address", "latitude", "longitude"]
@@ -101,18 +98,17 @@ def _get_line_message_schema() -> dict:
 
 
 
+
 class LineBotMCP:
     """LINE Bot MCP 服務器"""
     
-    def __init__(self, hass: HomeAssistant, sername: str) -> None:
+    def __init__(self, hass: HomeAssistant) -> None:
         """初始化 LINE Bot MCP 服務器"""
         self.hass = hass
-        self._sername = sername
-        self._botname = f"@{sername}"
         self._api_client = None
-        self._send_toolname = MCP_TOOL_SEND_MESSAGE.format(sername)
-        self._reply_toolname = MCP_TOOL_REPLY_MESSAGE.format(sername)
-        self._quota_toolname = MCP_TOOL_GET_QUOTA_INFO.format(sername)
+        self._send_toolname = MCP_TOOL_PUSH_MESSAGE
+        self._reply_toolname = MCP_TOOL_REPLY_MESSAGE
+        self._quota_toolname = MCP_TOOL_GET_QUOTA_INFO
 
     @property
     def _get_tool_definitions(self) -> list[types.Tool]:
@@ -120,68 +116,81 @@ class LineBotMCP:
         return [
             types.Tool(
                 name=self._send_toolname,
-                description="Send messages to a LINE user or group. Supports multiple message types including text, image, video, audio, location, sticker, and flex messages. Maximum 5 messages per request.",
+                description="Send messages to LINE user/group. Supports text, image, location messages (max 5 per request)",
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "botID": {
+                            "type": "string",
+                            "description": "Line Bot ID"
+                        },
                         "to": {
                             "type": "string",
-                            "description": "User ID (starts with 'U') or Group ID (starts with 'C') or Room ID (starts with 'R')",
+                            "description": "User ID (starts with U), Group ID (starts with C), or Room ID (starts with R)",
                             "pattern": "^[UCR][0-9a-f]{32}$"
                         },
                         "messages": {
                             "type": "array",
-                            "description": "An array of messages to send (max 5 messages). Each item must be one of text, image, location, etc.",
+                            "description": "Array of messages to send",
                             "items": _get_line_message_schema(),
                             "minItems": 1,
                             "maxItems": 5    
-                        },
+                        }
                     },
-                    "required": ["to","messages"],
-                    "additionalProperties": False
-                },
+                    "required": ["botID", "to", "messages"]
+                }
             ),
             types.Tool(
                 name=self._reply_toolname,
-                description="Reply to a LINE message with multiple messages. Can only be used within 30 seconds of receiving the original message. Maximum 5 messages per reply.",
+                description="Reply to LINE message within 30s (max 5 messages)",
                 inputSchema={
                     "type": "object",
                     "properties": {
+                        "botID": {
+                            "type": "string",
+                            "description": "Line Bot ID"
+                        },
                         "reply_token": {
                             "type": "string",
-                            "description": "Reply token received from webhook event (valid for 30 seconds)"
+                            "description": "Reply token from webhook (30s validity)"
                         },
                         "messages": {
                             "type": "array",
-                            "description": "An array of messages to send (max 5 messages). Each item must be one of text, image, location, etc.",
                             "items": _get_line_message_schema(),
                             "minItems": 1,
                             "maxItems": 5    
-                        },
+                        }
                     },
-                    "required": ["reply_token","messages"],
-                    "additionalProperties": False
-                },
+                    "required": ["botID", "reply_token", "messages"]
+                }
             ),
             types.Tool(
                 name=self._quota_toolname,
-                description="Get LINE Bot message quota information including quota type (limited/unlimited), total quota value, current usage, and usage percentage.",
+                description="Get LINE Bot monthly message quota usage information",
                 inputSchema={
-                    "type": "object",
-                    "properties": {},
-                    "additionalProperties": False
+                    "type": "object", 
+                    "properties": {
+                        "botID": {
+                            "type": "string",
+                            "description": "Line Bot ID"
+                        }
+                    },
+                    "required": ["botID"]
                 }
-            ),
+            )
         ]
 
-    def _get_api_client(self):
+    def _get_api_client(self, botname):
         """獲取 LINE API 客戶端"""
         try:
             if self._api_client is None:
                 service_manager = self.hass.data[DOMAIN][SERVICE_MANAGER]
-                self._api_client = service_manager.get_bot_client[self._botname]
+                self._api_client = service_manager.get_bot_client
             
-            return self._api_client
+            if not botname:
+                raise HomeAssistantError("Invalid bot ID")
+
+            return self._api_client[botname]
         except KeyError as e:
             raise HomeAssistantError(f"LINE API client not found: {e}") from e
 
@@ -198,19 +207,18 @@ class LineBotMCP:
 
     async def _handle_send_message(self, arguments: dict[str, Any]) -> Sequence[types.TextContent]:
         """處理發送訊息工具"""
-        client = self._get_api_client()
+        botname = arguments["botID"]
+        client = self._get_api_client(botname)
         api_data = {
             "to": arguments["to"],
             "messages": arguments["messages"],
         }
 
-        if "retry_key" in arguments:
-            api_data["retry_key"] = arguments["retry_key"]
-
         await client.push_message(**api_data)
 
         message_count = len(arguments["messages"])
         self._fire_tool_event(self._send_toolname, {
+            "botname": botname,
             "to": arguments["to"],
             "message_count": message_count,
             "success": True
@@ -218,12 +226,13 @@ class LineBotMCP:
 
         return [types.TextContent(
             type="text",
-            text=f"{message_count} message(s) sent successfully to {arguments['to']} via {self._botname}"
+            text=f"{message_count} message(s) sent successfully to {arguments['to']} via {botname}"
         )]
 
     async def _handle_reply_message(self, arguments: dict[str, Any]) -> Sequence[types.TextContent]:
         """處理回覆訊息工具"""
-        client = self._get_api_client()
+        botname = arguments["botID"]
+        client = self._get_api_client(botname)
         api_data = {
             "reply_token": arguments["reply_token"],
             "messages": arguments["messages"],
@@ -233,6 +242,7 @@ class LineBotMCP:
 
         message_count = len(arguments["messages"])
         self._fire_tool_event(self._reply_toolname, {
+            "botname": botname,
             "reply_token": arguments["reply_token"],
             "message_count": message_count,
             "success": True
@@ -240,21 +250,24 @@ class LineBotMCP:
 
         return [types.TextContent(
             type="text",
-            text=f"{message_count} reply message(s) sent successfully via {self._botname}"
+            text=f"{message_count} reply message(s) sent successfully via {botname}"
         )]
 
-    async def _handle_get_quota_info(self) -> Sequence[types.TextContent]:
+    async def _handle_get_quota_info(self, arguments: dict[str, Any]) -> Sequence[types.TextContent]:
         """處理獲取配額資訊工具"""
-        sensor = self.hass.states.get(f"sensor.{DOMAIN}_{self._sername}_message_quota")
+        botname = arguments["botID"]
+        sensor = self.hass.states.get(f"sensor.linebot_{botname.replace("@", "").strip()}_message_quota")
         if sensor is None:
-            return [types.TextContent(type="text", text=f"Quota information not available for '{self._botname}'")]
+            return [types.TextContent(type="text", text=f"Quota information not available for '{botname}'")]
 
         quota_data = sensor.attributes
         info_text = (
-            f"Usage: {quota_data.get("used_quota", 'N/A')}\n"
+            f"Total: {quota_data.get('total_quota', 'N/A')}\n"
+            f"Usage: {quota_data.get("used_quota", 'N/A')}"
         )
 
         self._fire_tool_event(self._quota_toolname, {
+            "botname": botname,
             "quota_info": quota_data,
             "success": True
         })
@@ -284,10 +297,10 @@ class LineBotMCP:
             raise HomeAssistantError(f"Error calling tool: {e}") from e
 
 
-async def create_server(hass: HomeAssistant, sername: str) -> Server:
+async def create_server(hass: HomeAssistant) -> Server:
     """創建新的 LINE Bot MCP 服務器"""
-    server = Server[Any](f"{DOMAIN}_{sername}")
-    linebot_mcp = LineBotMCP(hass, sername)
+    server = Server[Any]("linebot_mcp")
+    linebot_mcp = LineBotMCP(hass)
 
     @server.list_tools()  # type: ignore[no-untyped-call, misc]
     async def list_tools() -> list[types.Tool]:

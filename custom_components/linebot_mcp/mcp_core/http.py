@@ -2,10 +2,8 @@
 from __future__ import annotations
 
 import logging
-from weakref import WeakValueDictionary
 
 import anyio
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from aiohttp import web
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPNotFound
 from aiohttp_sse import sse_response
@@ -13,129 +11,138 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.core import HomeAssistant, callback
 from mcp import types
 
-from ..const import DOMAIN, SESSION_MANAGER
+from ..const import (
+    DOMAIN, 
+    SESSION_MANAGER, 
+    SHUTDOWN_EVENT,
+)
 from .server import create_server
 from .session import Session
 
 
 _LOGGER = logging.getLogger(__name__)
-
-# 使用弱引用快取已創建的 server 實例
-_SERVER_CACHE: WeakValueDictionary[str, object] = WeakValueDictionary()
+SSE_API = f"/linebotmcp/sse"
+MESSAGES_API = f"/linebotmcp/messages/{{session_id}}"
 
 
 @callback
-def async_register(hass: HomeAssistant, entry_id: str, sername: str) -> None:
+def async_register(hass: HomeAssistant) -> None:
     """註冊 HTTP API"""
-    sse_view, message_view = create_mcp_view(entry_id, sername)
-        
-    hass.http.register_view(sse_view)
-    hass.http.register_view(message_view)
-
-def create_mcp_view(entry_id: str, sername: str):
-    sse_class = type(
-        f"MCPSSEView_{entry_id}",
-        (LineBotMCPSSEView,),
-        {
-            "name": f"{DOMAIN}_{sername}:sse",
-            "url": f"/{DOMAIN}-{sername}/sse",
-        }
-    )
-    
-    message_class = type(
-        f"MCPMessagesView_{entry_id}",
-        (LineBotMCPMessagesView,),
-        {
-            "name": f"{DOMAIN}_{sername}:messages",
-            "url": f"/{DOMAIN}-{sername}/messages/{{session_id}}",
-        }
-    )
-
-    return sse_class(entry_id, sername), message_class(entry_id)
+    hass.http.register_view(LineBotMCPSSEView())
+    hass.http.register_view(LineBotMCPMessagesView())
 
 
+def get_manager(hass: HomeAssistant):
+    """獲取 LINE Bot MCP manager"""
+    session_manager = hass.data[DOMAIN][SESSION_MANAGER]
+    shutdown_event = hass.data[DOMAIN][SHUTDOWN_EVENT]
 
-def get_session_manager(hass: HomeAssistant, entry_id: str):
-    """獲取啟用的 LINE Bot MCP 配置項目"""
-    manager = hass.data[DOMAIN][entry_id][SESSION_MANAGER]
-    if not manager:
+    if not session_manager or not shutdown_event:
         raise HTTPNotFound(text="LINE Bot MCP server is not configured")
-    return manager
+    return session_manager, shutdown_event
 
 
 class LineBotMCPSSEView(HomeAssistantView):
     """LINE Bot MCP SSE 端點"""
 
-    name = None
-    url = None
+    name = f"{DOMAIN}:sse"
+    url = SSE_API
+    requires_auth = True
 
-    def __init__(self, entry_id: str, sername: str):
-        self.entry_id = entry_id
-        self.sername = sername
-
-    async def get(self, request: web.Request) -> web.StreamResponse:
+    async def get(self, request: web.Request):
         """處理 LINE Bot MCP 的 SSE 訊息"""
+        # _LOGGER.warning("headers received: %s", dict(request.headers))
         hass = request.app[KEY_HASS]
-        session_manager = get_session_manager(hass, self.entry_id)
+        session_manager, shutdown_event = get_manager(hass)
+    
+        try:
+            server = await create_server(hass)  
+            options = await hass.async_add_executor_job(
+                server.create_initialization_options  # Reads package for version info
+            )
 
-        if (cache_key := self.entry_id) not in _SERVER_CACHE:
-            server = await create_server(hass, self.sername)
-            _SERVER_CACHE[cache_key] = server
-        else:
-            server = _SERVER_CACHE[cache_key]
-       
-        options = await hass.async_add_executor_job(
-            server.create_initialization_options  # Reads package for version info
-        )
+            read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
+            write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
 
-        read_stream: MemoryObjectReceiveStream[types.JSONRPCMessage | Exception]
-        read_stream_writer: MemoryObjectSendStream[types.JSONRPCMessage | Exception]
-        read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
+            async with (
+                sse_response(request) as response,
+                session_manager.create(Session(read_stream_writer)) as session_id,
+            ):
+                session_uri = MESSAGES_API.format(session_id=session_id)
+                _LOGGER.debug(f"Sending SSE endpoint: {session_uri}")
+                await response.send(session_uri, event="endpoint")
 
-        write_stream: MemoryObjectSendStream[types.JSONRPCMessage]
-        write_stream_reader: MemoryObjectReceiveStream[types.JSONRPCMessage]
-        write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
-
-        async with (
-            sse_response(request) as response,
-            session_manager.create(Session(read_stream_writer)) as session_id,
-        ):
-            session_uri = f"/{DOMAIN}-{self.sername}/messages/{session_id}"
-            _LOGGER.debug(f"Sending SSE endpoint: {session_uri}")
-            await response.send(session_uri, event="endpoint")
-
-            async def sse_reader() -> None:
-                """轉發 MCP 服務器回應給客戶端"""
-                async for message in write_stream_reader:
-                    _LOGGER.debug(f"Sending SSE message: {message}")
-                    await response.send(
-                        message.model_dump_json(by_alias=True, exclude_none=True),
-                        event="message",
-                    )
-
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(sse_reader)
-                await server.run(read_stream, write_stream, options)
-                return response
-
+                async def sse_reader() -> None:
+                    """轉發 MCP 服務器回應給客戶端"""
+                    try:
+                        async for message in write_stream_reader:
+                            _LOGGER.debug(f"Sending SSE message: {message}")
+                            try:
+                                with anyio.fail_after(5):
+                                    await response.send(
+                                        message.model_dump_json(by_alias=True, exclude_none=True),
+                                        event="message",
+                                    )
+                            except TimeoutError:
+                                _LOGGER.warning("Timeout sending SSE message")
+                    
+                    except anyio.get_cancelled_exc_class():
+                        _LOGGER.debug("SSE reader cancelled")
+                        raise
+                    except Exception as e:
+                        _LOGGER.debug(f"SSE reader error: {e}")
+                
+                async def server_runner() -> None:
+                    """運行 MCP 伺服器"""
+                    try:
+                        await server.run(read_stream, write_stream, options)
+                    except anyio.get_cancelled_exc_class():
+                        _LOGGER.debug("Server runner cancelled")
+                        raise
+                    except Exception as e:
+                        _LOGGER.debug(f"Server runner error: {e}")
+  
+                try:
+                    async with anyio.create_task_group() as tg:
+                        tg.start_soon(sse_reader)
+                        tg.start_soon(server_runner)
+                        await shutdown_event.wait()
+                        tg.cancel_scope.cancel()
+                        await response.send(
+                            '{"type": "close", "reason": "server_shutdown"}',
+                            event="close"
+                        )
+                        _LOGGER.debug("Sent close event")
+                        
+                except* Exception as exc_group:
+                    for exc in exc_group.exceptions:
+                        _LOGGER.error(f"Task error in session {session_id}: {type(exc).__name__}: {exc}")
+                finally:
+                    await write_stream.aclose()
+                    await write_stream_reader.aclose()
+                    await read_stream_writer.aclose()
+                    _LOGGER.debug(f"SSE connection for {session_id} is done.")
+                
+        except Exception as e:
+            _LOGGER.error(f"Error handling SSE request: {e}")
+            raise HTTPBadRequest(text="Could not handle SSE request") from e
+    
 
 class LineBotMCPMessagesView(HomeAssistantView):
     """LINE Bot MCP 訊息端點"""
 
-    name = None
-    url = None
-
-    def __init__(self, entry_id: str):
-        self.entry_id = entry_id
+    name = f"{DOMAIN}:messages"
+    url = MESSAGES_API
+    requires_auth = True
 
     async def post(
         self,
         request: web.Request,
         session_id: str,
-    ) -> web.Response:
+    ):
         """處理 LINE Bot MCP 的傳入訊息"""
         hass = request.app[KEY_HASS]
-        session_manager = get_session_manager(hass, self.entry_id)
+        session_manager, _ = get_manager(hass)
 
         if (session := session_manager.get(session_id)) is None:
             _LOGGER.info(f"Could not find session ID: '{session_id}'")

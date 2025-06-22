@@ -5,6 +5,7 @@ import asyncio
 import logging
 import json
 import re
+from string import Template
 
 from aiohttp import web
 from homeassistant.components.http import KEY_HASS, HomeAssistantView
@@ -18,8 +19,6 @@ from linebot.v3.webhooks import (
 
 from .line_api_client import (
     create_text_message,
-    create_image_message,
-    create_location_message,
 )
 from .const import (
     DOMAIN,
@@ -150,40 +149,118 @@ class LineBotWebhookView(HomeAssistantView):
         if message.type == "text":
             event_data[ATTR_MESSAGE_TYPE] = "text"
             event_data[ATTR_MESSAGE_TEXT] = message.text
-            if self._auto_reply:
-                # 調用 conversation 服務進行自動回覆
-                response = await self.hass.services.async_call(
-                    "conversation",
-                    "process",
+            try:
+                if self._auto_reply:
+                    tpl = Template("""
+                    User's message: $user_text
+                    Answer using the structured format defined in the JSON Schema below.
                     {
-                        "language": "zh-TW",
-                        "agent_id": self._agent_id,
-                        "text": event_data.get(ATTR_MESSAGE_TEXT),
-                        "conversation_id": event_data[ATTR_USER_ID] if event_data[ATTR_USER_ID] else "",
+                    "type": "object",
+                    "properties": {
+                        "messages": {
+                            "type": "array",
+                            "description": "Array of messages to send",
+                            "items": {
+                                "type": "object",
+                                "description": "LINE message: text, image, or location",
+                                "oneOf": [
+                                    {
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "enum": ["text"],
+                                                "description": "Text message"
+                                            },
+                                            "text": {
+                                                "type": "string",
+                                                "description": "Message content",
+                                                "maxLength": 5000
+                                            }
+                                        },
+                                        "required": ["type", "text"]
+                                    },
+                                    {
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "enum": ["image"],
+                                                "description": "Image message"
+                                            },
+                                            "originalContentUrl": {
+                                                "type": "string",
+                                                "format": "uri",
+                                                "description": "HTTPS URL of original image (JPEG/PNG, max 10MB)",
+                                                "maxLength": 2000
+                                            },
+                                            "previewImageUrl": {
+                                                "type": "string",
+                                                "format": "uri",
+                                                "description": "HTTPS URL of preview image (max 1MB)",
+                                                "maxLength": 2000
+                                            }
+                                        },
+                                        "required": ["type", "originalContentUrl", "previewImageUrl"]
+                                    },
+                                    {
+                                        "properties": {
+                                            "type": {
+                                                "type": "string",
+                                                "enum": ["location"],
+                                                "description": "Location message"
+                                            },
+                                            "title": {
+                                                "type": "string",
+                                                "description": "Location title/label"
+                                            },
+                                            "address": {
+                                                "type": "string",
+                                                "description": "Full address"
+                                            },
+                                            "latitude": {
+                                                "type": "number",
+                                                "description": "Latitude coordinate"
+                                            },
+                                            "longitude": {
+                                                "type": "number",
+                                                "description": "Longitude coordinate"
+                                            }
+                                        },
+                                        "required": ["type", "address", "latitude", "longitude"]
+                                    }
+                                ]
+                            },
+                            "minItems": 1,
+                            "maxItems": 5    
+                        }
                     },
-                    blocking=True,
-                    return_response=True,
-                )
-                if response:
-                    _LOGGER.info(f"{response}")
+                    "required": ["messages"]
+                    }
+                    """)
+                    user_msg = tpl.substitute(user_text=event_data[ATTR_MESSAGE_TEXT])
 
-                    speech = response["response"]["speech"]["plain"]["speech"]
-                    data = self.extract_json_or_text(speech)
-                    msg = []
-                    if "text" in data and "address" in data and "latitude" in data and "longitude" in data:
-                        msg.append(create_text_message(data["text"]))
-                        msg.append(create_location_message(data["address"], data["latitude"], data["longitude"]))
-                    elif "image_url" in data and "text" in data:
-                        msg.append(create_text_message(data["text"]))
-                        msg.append(create_image_message(data["image_url"]))
-                    elif "text" in data:
-                        msg.append(create_text_message(data["text"]))
-                    else:
-                        msg.append(create_text_message("I'm sorry, I don't understand."))
+                    # 調用 conversation 服務進行自動回覆
+                    response = await self.hass.services.async_call(
+                        "conversation",
+                        "process",
+                        {
+                            "language": "zh-TW",
+                            "agent_id": self._agent_id,
+                            "text": user_msg,
+                            "conversation_id": event_data[ATTR_USER_ID] if event_data[ATTR_USER_ID] else "",
+                        },
+                        blocking=True,
+                        return_response=True,
+                    )
+                    if response:
+                        _LOGGER.info(f"{response}")
 
-                    await self._client.reply_message(event_data[ATTR_REPLY_TOKEN], msg)
-                    
-                _LOGGER.info(f"Auto reply triggered for user {event_data.get(ATTR_USER_ID)}")
+                        speech = response["response"]["speech"]["plain"]["speech"]
+                        data = self.extract_json_or_text(speech)
+                        await self._client.reply_message(event_data[ATTR_REPLY_TOKEN], data)
+                        
+                    _LOGGER.info(f"Auto reply triggered for user {event_data.get(ATTR_USER_ID)}")
+            except Exception as e:
+                raise RuntimeError(f"Auto reply error: {e}") from e
                 
         elif message.type == "image":
             event_data[ATTR_MESSAGE_TYPE] = "image"
@@ -248,15 +325,15 @@ class LineBotWebhookView(HomeAssistantView):
         """
         try:
             # 嘗試使用正規表達式抓出第一個 JSON block
-            match = re.search(r'({.*})', response_speech)
+            match = re.sub(r"^```json\s*|\s*```$", "", response_speech.strip())
             if match:
-                json_str = match.group(1)
-                result = json.loads(json_str)
+                result = json.loads(match)
 
-                if isinstance(result, dict) and "text" in result:
-                    return result
+                if isinstance(result, dict) and "messages" in result:
+                    return result["messages"]
         except json.JSONDecodeError:
             pass
 
         # 若抓不到 JSON，就把整段內容包裝成 text
-        return {"text": response_speech.strip()}
+        msg = create_text_message(str(response_speech).strip())
+        return [msg]

@@ -34,9 +34,12 @@ A custom integration for Home Assistant that integrates LINE Bot with the Model 
 - 🔄 **Smart Auto Reply** — Integrates conversation agents for intelligent replies.
 - 📊 **Real-Time Monitoring** — Track bot status and quota usage.
 
+> [!Warning]
+> Auto reply is currently an experimental feature and may not always work as expected.
+
 ## 📋 Requirements
 
-- Home Assistant 2025.5.0 or later
+- Home Assistant 2025.7.0 or later
 - A LINE Developers account
 
 ## 🚀 Getting Started
@@ -68,18 +71,18 @@ A custom integration for Home Assistant that integrates LINE Bot with the Model 
 
 ```yaml
 # Send a text message
-service: linebot_mcp.linebot_push_message
+service: notify.linebot_push_message
 data:
-  name: "@linebot"
+  name: "@bot123"
   to: "U1234567890abcdef1234567890abcdef"
   messages:
     - type: "text"
       text: "Hello from Home Assistant!"
 
 # Reply to a message
-service: linebot_mcp.linebot_reply_message
+service: notify.linebot_reply_message
 data:
-  name: "@linebot"
+  name: "@bot123"
   reply_token: "{{ trigger.event.data.reply_token }}"
   messages:
     - type: "text"
@@ -90,14 +93,14 @@ data:
 
 ```yaml
 automation:
-  - alias: "LINE Bot Auto Reply"
+  - alias: "LINE Bot Reply"
     trigger:
       platform: event
-      event_type: linebot_mcp_@linebot_message_received
+      event_type: linebot_@bot123_message_received
     action:
-      service: linebot_mcp.linebot_reply_message
+      service: notify.linebot_reply_message
       data:
-        name: "@linebot"
+        name: "@bot123"
         reply_token: "{{ trigger.event.data.reply_token }}"
         messages:
           - type: "text"
@@ -108,15 +111,14 @@ automation:
 
 Available tools for AI assistants:
 
-* `send_message` — Send a message
+* `push_message` — Send a message
 * `reply_message` — Reply to a message
-* `get_bot_info` — Retrieve bot information
-* `get_quota_info` — Get usage quota
+* `get_quota` — Get usage quota
 
 **MCP SSE Endpoint:**
 
 ```
-http://your-ha-url:8123/api/linebot_mcp/sse
+http://your-ha-url:8123/linebot_mcp/sse
 ```
 
 ## 📱 Supported Message Types

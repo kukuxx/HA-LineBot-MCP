@@ -7,6 +7,8 @@ DOMAIN = "linebot_mcp"
 SERVICE_NOTIFY = "notify"
 SERVICE_MANAGER = "service_manager"
 SESSION_MANAGER = "session_manager"
+STOP_LISTENER = "stop_listener"
+SHUTDOWN_EVENT = "shutdown"
 
 # 全域服務名稱
 SERVICE_REPLY_MESSAGE = "linebot_reply_message"
@@ -40,8 +42,8 @@ DEVICE_MANUFACTURER = "LINE Corporation"
 DEVICE_MODEL = "LINE Bot with MCP"
 
 # 事件類型
-EVENT_MESSAGE_RECEIVED = f"{DOMAIN}_{{}}_message_received"
-EVENT_POSTBACK = f"{DOMAIN}_{{}}_postback"
+EVENT_MESSAGE_RECEIVED = f"linebot_{{}}_message_received"
+EVENT_POSTBACK = f"linebot_{{}}_postback"
 
 # LINE API 相關常數
 LINE_API_BASE_URL = "https://api.line.me"
@@ -106,9 +108,9 @@ EVENT_MCP_SERVER_ERROR = f"linebot_mcp_server_error"
 EVENT_MCP_TOOL_CALLED = f"linebot_mcp_tool_called"
 
 # MCP 工具名稱常數
-MCP_TOOL_SEND_MESSAGE = f"{{botname}}_send_message"
-MCP_TOOL_REPLY_MESSAGE = f"{{botname}}_reply_message"
-MCP_TOOL_GET_QUOTA_INFO = f"{{botname}}_get_quota_info"
+MCP_TOOL_PUSH_MESSAGE = f"push_message"
+MCP_TOOL_REPLY_MESSAGE = f"reply_message"
+MCP_TOOL_GET_QUOTA_INFO = f"get_quota"
 
 # 錯誤訊息常數
 ERROR_INVALID_SIGNATURE = "Invalid signature"

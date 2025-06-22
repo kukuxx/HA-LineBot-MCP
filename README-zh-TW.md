@@ -35,9 +35,12 @@
 - 🔄 **自動回覆** - 整合對話代理進行智慧回覆
 - 📊 **即時監控** - Bot 狀態、配額使用情況監控
 
+> [!Warning]
+> 自動回覆目前為實驗性功能，有時可能會出錯
+
 ## 📋 系統需求
 
-- Home Assistant 2025.5.0+
+- Home Assistant 2025.7.0+
 - LINE Developers 帳號
 
 ## 🚀 快速開始
@@ -68,18 +71,18 @@
 
 ```yaml
 # 發送文字訊息
-service: linebot_mcp.linebot_push_message
+service: notify.linebot_push_message
 data:
-  name: "@linebot"
+  name: "@bot123"
   to: "U1234567890abcdef1234567890abcdef"
   messages:
     - type: "text"
       text: "Hello from Home Assistant!"
 
 # 回覆訊息
-service: linebot_mcp.linebot_reply_message
+service: notify.linebot_reply_message
 data:
-  name: "@linebot"
+  name: "@bot123"
   reply_token: "{{ trigger.event.data.reply_token }}"
   messages:
     - type: "text"
@@ -90,14 +93,14 @@ data:
 
 ```yaml
 automation:
-  - alias: "LINE Bot 自動回覆"
+  - alias: "LINE Bot 回覆"
     trigger:
       platform: event
-      event_type: linebot_mcp_@linebot_message_received
+      event_type: linebot_@bot123_message_received
     action:
-      service: linebot_mcp.linebot_reply_message
+      service: notify.linebot_reply_message
       data:
-        name: "@linebot"
+        name: "@bot123"
         reply_token: "{{ trigger.event.data.reply_token }}"
         messages:
           - type: "text"
@@ -108,13 +111,12 @@ automation:
 
 AI 助手可以使用以下工具：
 
-- `send_message` - 發送訊息
+- `push_message` - 發送訊息
 - `reply_message` - 回覆訊息  
-- `get_bot_info` - 取得 Bot 資訊
-- `get_quota_info` - 查詢配額
+- `get_quota` - 查詢配額
 
 **MCP 連線端點：**
-- SSE: `http://your-ha-url:8123/api/linebot_mcp/sse`
+- SSE: `http://your-ha-url:8123/linebot_mcp/sse`
 
 ## 📱 支援的訊息類型
 
@@ -142,8 +144,8 @@ AI 助手可以使用以下工具：
 
 整合會觸發以下事件：
 
-- `linebot_mcp_{bot_name}_message_received` - 收到訊息
-- `linebot_mcp_{bot_name}_postback` - 收到 postback
+- `linebot_{bot_ID}_message_received` - 收到訊息
+- `linebot_{bot_ID}_postback` - 收到 postback
 
 事件包含用戶 ID、訊息內容、回覆 token 等資訊。
 
