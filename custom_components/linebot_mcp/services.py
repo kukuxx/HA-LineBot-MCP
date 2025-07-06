@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from typing import Any, Dict
 
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
@@ -106,7 +107,7 @@ class LineBotServiceManager:
     def __init__(self, hass: HomeAssistant):
         """初始化服務管理器."""
         self.hass = hass
-        self._client: Dict[str, Any] = {}
+        self._clients: Dict[str, Any] = {}
 
     @property
     def service_registry(self) :
@@ -150,21 +151,22 @@ class LineBotServiceManager:
             )
         }
     
-    def _get_client(self, name: str, error_msg: str):
+    @lru_cache(maxsize=10)
+    def _get_client(self, name: str):
         """獲取 LINE API 客戶端."""
         if not name:
             raise ValueError("Invalid bot name")
 
-        if not self._client:
-            self._client = self.get_bot_client
+        if not self._clients:
+            self._clients = self.get_bot_client
 
-        if name in self._client:
-            return self._client[name]
+        if name in self._clients:
+            return self._clients[name]
 
-        self._client = self.get_bot_client
-        api_client = self._client.get(name)
+        self._clients = self.get_bot_client
+        api_client = self._clients.get(name)
         if not api_client:
-            raise ValueError(f"{error_msg}: {name}")
+            raise ValueError(f"LINE API client not found: {name}")
 
         return api_client
 
@@ -181,9 +183,7 @@ class LineBotServiceManager:
             message_count = len(call.data["messages"])
 
             # 獲取 LINE API 客戶端
-            line_api_client = self._get_client(
-                bot_name, "LINE API client not initialized"
-            )
+            line_api_client = self._get_client(bot_name)
 
             # 取得可選參數
             retry_key = call.data.get("retry_key")

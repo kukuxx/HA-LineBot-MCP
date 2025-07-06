@@ -119,23 +119,26 @@ ERROR_INTERNAL_SERVER = "Internal server error"
 
 
 # 預先定義服務架構
-_BASE_MESSAGE_FIELDS = {
+BASE_MESSAGE_FIELDS = {
     vol.Required(CONF_NAME): cv.string,
     vol.Required("messages"): vol.All(
-        cv.ensure_list,[vol.Schema(
-            {vol.Required("type"): vol.In(MESSAGE_TYPE_LIST),}
+        cv.ensure_list,vol.Length(min=1, max=5),[vol.Schema(
+            {
+                vol.Required("type"): vol.In(MESSAGE_TYPE_LIST),
+            },
+            extra=vol.ALLOW_EXTRA
         )]
     ),
     vol.Optional("notification_disabled", default=False): cv.boolean,
 }
 
 REPLY_MESSAGE_SCHEMA = vol.Schema({
-    **_BASE_MESSAGE_FIELDS,
+    **BASE_MESSAGE_FIELDS,
     vol.Required(ATTR_REPLY_TOKEN): cv.string,
 })
 
 PUSH_MESSAGE_SCHEMA = vol.Schema({
-    **_BASE_MESSAGE_FIELDS,
+    **BASE_MESSAGE_FIELDS,
     vol.Required("to"): cv.string,
     vol.Optional("retry_key"): cv.string,
 })
@@ -208,7 +211,7 @@ REPLY_MESSAGE_DESCRIBE = {
                 "text": ""
             }
         },
-        "reply token": {
+        "reply_token": {
             "description": "Reply token from LINE webhook event",
             "example": "nHuyWiB7yP5Zw52FIkcQobQuGDXCTA",
             "required": True,
@@ -224,7 +227,7 @@ REPLY_MESSAGE_DESCRIBE = {
                 "object": {}
             }
         },
-        "notification disabled": {
+        "notification_disabled": {
             "description": "Disable push notification for this message",
             "example": False,
             "required": False,
@@ -262,7 +265,7 @@ PUSH_MESSAGE_DESCRIBE = {
                 "object": {}
             }
         },
-        "retry key": {
+        "retry_key": {
             "description": "Retry key for idempotency (UUID format recommended)",
             "example": "550e8400-e29b-41d4-a716-446655440000",
             "required": False,
@@ -270,7 +273,7 @@ PUSH_MESSAGE_DESCRIBE = {
                 "text": ""
             }
         },
-        "notification disabled": {
+        "notification_disabled": {
             "description": "Disable push notification for this message",
             "example": False,
             "required": False,
