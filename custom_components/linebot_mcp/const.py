@@ -7,6 +7,7 @@ DOMAIN = "linebot_mcp"
 SERVICE_NOTIFY = "notify"
 SERVICE_MANAGER = "service_manager"
 SESSION_MANAGER = "session_manager"
+SERVER_MANAGER = "server_manager"
 STOP_LISTENER = "stop_listener"
 SHUTDOWN_EVENT = "shutdown"
 

@@ -5,7 +5,7 @@
 [![License][license-shield]][license-url]
 
 [contributors-shield]: https://img.shields.io/github/contributors/kukuxx/HA-LineBot-MCP.svg?style=for-the-badge
-[contributors-url]: https://github.com/kukuxx/HA-LineBot-MCP-Card/graphs/contributors
+[contributors-url]: https://github.com/kukuxx/HA-LineBot-MCP/graphs/contributors
 
 [forks-shield]: https://img.shields.io/github/forks/kukuxx/HA-LineBot-MCP.svg?style=for-the-badge
 [forks-url]: https://github.com/kukuxx/HA-LineBot-MCP/network/members
@@ -63,7 +63,8 @@
 
 1. 在 Home Assistant 中添加 "LINE Bot MCP" 整合
 2. 輸入 Bot ID、Channel Access Token、Channel Secret
-3. 複製生成的 Webhook URL 到 LINE Developers Console
+3. 到 **bot info sensor** 的 **attibutes** 查看 **Webhook endpoint**
+4. 將 Webhook URL 填到 LINE Developers Console
 
 ## 🎯 使用方式
 
@@ -116,7 +117,7 @@ AI 助手可以使用以下工具：
 - `get_quota` - 查詢配額
 
 **MCP 連線端點：**
-- SSE: `http://your-ha-url:8123/linebot_mcp/sse`
+- SSE: `http://your-ha-url:8123/linebotmcp/sse`
 
 ## 📱 支援的訊息類型
 

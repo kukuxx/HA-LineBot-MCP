@@ -11,8 +11,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.config_entries import ConfigEntry
 
-from .mcp_core import http
-from .mcp_core.session import SessionManager
+from .mcp_core import http, MCPServerManager, SessionManager
 from .services import LineBotServiceManager
 from .line_api_client import LineApiClient
 from .webhook import LineBotWebhookView
@@ -31,6 +30,7 @@ from .const import (
     CONF_AUTO_REPLY,
     SERVICE_MANAGER,
     SESSION_MANAGER,
+    SERVER_MANAGER,
     SHUTDOWN_EVENT,
     STOP_LISTENER,
     LINEBOT_INFO_COORDINATOR,
@@ -65,6 +65,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data[DOMAIN].update({
         SERVICE_MANAGER: service_manager,
         SESSION_MANAGER: SessionManager(),
+        SERVER_MANAGER: MCPServerManager(hass),
         STOP_LISTENER: cancel,
         SHUTDOWN_EVENT: asyncio.Event(),
     })
@@ -148,11 +149,13 @@ async def _setup_webhook(
     entry_id: str,
     ) -> None:
     """設置 webhook"""
-    webhook_path = config_data.get(CONF_WEBHOOK_PATH, "/linebot/webhook")
+    webhook_path = config_data.get(CONF_WEBHOOK_PATH)
+    if not webhook_path:
+        raise ValueError("Webhook path is not configured")
 
     def create_webhook_view():
         webhook_class = type(
-            f"MCPSSEView_{entry_id}",
+            f"LineBotWebhookView_{entry_id}",
             (LineBotWebhookView,),
             {
                 "name": f"{DOMAIN}_{entry_id}_webhook",

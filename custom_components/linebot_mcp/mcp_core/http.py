@@ -11,13 +11,15 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.core import HomeAssistant, callback
 from mcp import types
 
+from .server import MCPServerManager
+from .session import Session
+
 from ..const import (
     DOMAIN, 
     SESSION_MANAGER, 
+    SERVER_MANAGER,
     SHUTDOWN_EVENT,
 )
-from .server import create_server
-from .session import Session
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +44,12 @@ def get_manager(hass: HomeAssistant):
     return session_manager, shutdown_event
 
 
+async def get_server(hass: HomeAssistant):
+    """獲取 LINE Bot MCP server"""
+    server_manager = hass.data[DOMAIN][SERVER_MANAGER]
+    return await server_manager.get_server()
+
+
 class LineBotMCPSSEView(HomeAssistantView):
     """LINE Bot MCP SSE 端點"""
 
@@ -53,16 +61,16 @@ class LineBotMCPSSEView(HomeAssistantView):
         """處理 LINE Bot MCP 的 SSE 訊息"""
         # _LOGGER.warning("headers received: %s", dict(request.headers))
         hass = request.app[KEY_HASS]
-        session_manager, shutdown_event = get_manager(hass)
-    
+        
         try:
-            server = await create_server(hass)  
+            session_manager, shutdown_event = get_manager(hass)
+            server = await get_server(hass)  
             options = await hass.async_add_executor_job(
                 server.create_initialization_options  # Reads package for version info
             )
 
-            read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
-            write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
+            read_stream_writer, read_stream_reader = anyio.create_memory_object_stream(0)
+            write_stream_writer, write_stream_reader = anyio.create_memory_object_stream(0)
 
             async with (
                 sse_response(request) as response,
@@ -95,7 +103,7 @@ class LineBotMCPSSEView(HomeAssistantView):
                 async def server_runner() -> None:
                     """運行 MCP 伺服器"""
                     try:
-                        await server.run(read_stream, write_stream, options)
+                        await server.run(read_stream_reader, write_stream_writer, options)
                     except anyio.get_cancelled_exc_class():
                         _LOGGER.debug("Server runner cancelled")
                         raise
@@ -118,9 +126,7 @@ class LineBotMCPSSEView(HomeAssistantView):
                     for exc in exc_group.exceptions:
                         _LOGGER.error(f"Task error in session {session_id}: {type(exc).__name__}: {exc}")
                 finally:
-                    await write_stream.aclose()
-                    await write_stream_reader.aclose()
-                    await read_stream_writer.aclose()
+                    await write_stream_writer.aclose()
                     _LOGGER.debug(f"SSE connection for {session_id} is done.")
                 
         except Exception as e:

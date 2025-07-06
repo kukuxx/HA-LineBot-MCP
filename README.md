@@ -5,7 +5,7 @@
 [![License][license-shield]][license-url]
 
 [contributors-shield]: https://img.shields.io/github/contributors/kukuxx/HA-LineBot-MCP.svg?style=for-the-badge
-[contributors-url]: https://github.com/kukuxx/HA-LineBot-MCP-Card/graphs/contributors
+[contributors-url]: https://github.com/kukuxx/HA-LineBot-MCP/graphs/contributors
 
 [forks-shield]: https://img.shields.io/github/forks/kukuxx/HA-LineBot-MCP.svg?style=for-the-badge
 [forks-url]: https://github.com/kukuxx/HA-LineBot-MCP/network/members
@@ -63,7 +63,8 @@ A custom integration for Home Assistant that integrates LINE Bot with the Model 
 
 1. In Home Assistant, add the "LINE Bot MCP" integration
 2. Provide your Bot ID, Channel Access Token, and Channel Secret
-3. Copy the generated **Webhook URL** into LINE Developers Console
+3. Go to the **attributes** of the **bot info sensor** to view the **Webhook endpoint**
+4. Enter the Webhook URL in the LINE Developer Console
 
 ## 🎯 Usage
 
@@ -118,7 +119,7 @@ Available tools for AI assistants:
 **MCP SSE Endpoint:**
 
 ```
-http://your-ha-url:8123/linebot_mcp/sse
+http://your-ha-url:8123/linebotmcp/sse
 ```
 
 ## 📱 Supported Message Types

@@ -1,9 +1,10 @@
 """The LINE Bot MCP Server implementation."""
 from __future__ import annotations
 
-from collections.abc import Sequence
+import asyncio
 import logging
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, Optional
 
 from mcp import types
 from mcp.server import Server
@@ -297,19 +298,35 @@ class LineBotMCP:
             raise HomeAssistantError(f"Error calling tool: {e}") from e
 
 
-async def create_server(hass: HomeAssistant) -> Server:
-    """創建新的 LINE Bot MCP 服務器"""
-    server = Server[Any]("linebot_mcp")
-    linebot_mcp = LineBotMCP(hass)
+class MCPServerManager:
+    """MCP Server 管理器"""
+    
+    def __init__(self, hass: HomeAssistant):
+        self.hass = hass
+        self._server: Optional[Server] = None
+        self._lock = asyncio.Lock()
+        
+    async def get_server(self) -> Server:
+        """獲取或創建 server 實例"""
+        async with self._lock:
+            if self._server is None:
+                self._server = await self._create_server()
+            return self._server
+    
+    async def _create_server(self) -> Server:
+        """創建新的 server 實例"""
+        server = Server[Any]("linebot_mcp")
+        
+        @server.list_tools()
+        async def list_tools() -> list[types.Tool]:
+            """列出可用的 LINE Bot 工具"""
+            linebot_mcp = LineBotMCP(self.hass)
+            return linebot_mcp._get_tool_definitions
 
-    @server.list_tools()  # type: ignore[no-untyped-call, misc]
-    async def list_tools() -> list[types.Tool]:
-        """列出可用的 LINE Bot 工具"""
-        return linebot_mcp._get_tool_definitions
-
-    @server.call_tool()  # type: ignore[no-untyped-call, misc]
-    async def call_tool(tool_name: str, arguments: dict) -> Sequence[types.TextContent]:
-        """處理工具調用"""
-        return await linebot_mcp.call_tool(tool_name, arguments)
-
-    return server
+        @server.call_tool()
+        async def call_tool(tool_name: str, arguments: dict) -> Sequence[types.TextContent]:
+            """處理工具調用"""
+            linebot_mcp = LineBotMCP(self.hass)
+            return await linebot_mcp.call_tool(tool_name, arguments)
+        
+        return server
